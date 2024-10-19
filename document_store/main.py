@@ -11,6 +11,7 @@ fake = Faker('pt_BR')
 client = MongoClient("mongodb://localhost:27017/")
 db = client['universidade']
 
+db.drop_database('universidade')
 # Coleções
 alunos_collection = db['students']
 professores_collection = db['teachers']
@@ -34,8 +35,8 @@ departamentos = {
 }
 
 class Disciplina(BaseModel):
-    codigo_disciplina: str = Field(max_length=6)
-    nome: str = Field(max_length=40)
+    codigo_disciplina: str = Field(max_length=100)
+    nome: str = Field(max_length=100)
     semestre: int
     ano: int
     nota_final: float
@@ -43,23 +44,23 @@ class Disciplina(BaseModel):
 
 class Curso(BaseModel):
     id_curso: int
-    nome: str = Field(max_length=30)
-    nome_departamento: str = Field(max_length=30)
+    nome: str = Field(max_length=100)
+    nome_departamento: str = Field(max_length=100)
 
 class Aluno(BaseModel):
     ra: int
-    nome: str = Field(max_length=50)
-    email: str = Field(max_length=50)
-    telefone: Optional[str] = Field(max_length=20, default=None)
+    nome: str = Field(max_length=100)
+    email: str = Field(max_length=100)
+    telefone: Optional[str] = Field(max_length=100, default=None)
     curso: Curso
     disciplinas: List[Disciplina]
     formado: bool
 
 class Professor(BaseModel):
     id: int
-    nome: str = Field(max_length=50)
-    email: str = Field(max_length=50)
-    telefone: Optional[str] = Field(max_length=20)
+    nome: str = Field(max_length=100)
+    email: str = Field(max_length=100)
+    telefone: Optional[str] = Field(max_length=100)
     salario: float
     departamento: str
     chefe_departamento: bool
