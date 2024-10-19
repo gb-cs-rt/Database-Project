@@ -15,6 +15,7 @@ db = client['universidade']
 alunos_collection = db['students']
 professores_collection = db['teachers']
 cursos_collection = db['courses']
+grupos_tcc_collection = db['grupos_tcc']
 
 # Cursos e disciplinas
 cursos_e_disciplinas = {
@@ -35,7 +36,8 @@ departamentos = {
 class Disciplina(BaseModel):
     codigo_disciplina: str = Field(max_length=6)
     nome: str = Field(max_length=40)
-    semestre: str
+    semestre: int
+    ano: int
     nota_final: float
     situacao: str
 
@@ -62,10 +64,11 @@ class Professor(BaseModel):
     departamento: str
     chefe_departamento: bool
 
-class Tcc(BaseModel):
+class GrupoTCC(BaseModel):
+    id_grupo: int
     tema: str
-    orientador: str
-    grupo: List[str]
+    orientador: int
+    alunos: List[int]
 
 def gerar_nome_aleatorio():
     return fake.name()
@@ -73,13 +76,15 @@ def gerar_nome_aleatorio():
 def gerar_disciplina_aleatoria_para_curso(curso_nome):
     disciplinas = cursos_e_disciplinas.get(curso_nome, ["Disciplina Genérica"])
     codigo = f"DISC{random.randint(100, 999)}"
-    semestre = f"{random.randint(2020, 2025)}-{random.randint(1, 2)}"
+    semestre = random.randint(1, 2)
+    ano = random.randint(2020, 2025)
     nota_final = round(random.uniform(4, 10), 2)
     situacao = "Aprovado" if nota_final >= 5.0 else "Reprovado"
     return Disciplina(
         codigo_disciplina=codigo,
         nome=random.choice(disciplinas),
         semestre=semestre,
+        ano=ano,
         nota_final=nota_final,
         situacao=situacao
     )
@@ -124,37 +129,47 @@ def gerar_professor_aleatorio():
     professores_collection.insert_one(professor.dict())
     return professor
 
-def historico_escolar_aluno(ra):
-    historico = alunos_collection.find_one(
-        {"ra": ra},
-        {"_id": 0, "disciplinas.codigo_disciplina": 1, "disciplinas.nome": 1,
-         "disciplinas.semestre": 1, "disciplinas.nota_final": 1}
-    )
-    return historico
+def gerar_grupo_tcc_aleatorio():
+    id_grupo = random.randint(1, 1000)
+    tema = f"Tema do TCC {id_grupo}"
+    orientador = professores_collection.find_one({}, {"id": 1})["id"]
+    alunos = alunos_collection.aggregate([{"$sample": {"size": 3}}])
+    alunos_ra = [aluno["ra"] for aluno in alunos]
 
-def disciplinas_ministradas_por_professor(nome_professor):
-    professor = professores_collection.find_one(
-        {"nome": nome_professor},
-        {"_id": 0, "disciplinas.semestre": 1, "disciplinas.nome": 1}
+    grupo_tcc = GrupoTCC(
+        id_grupo=id_grupo,
+        tema=tema,
+        orientador=orientador,
+        alunos=alunos_ra
     )
-    return professor
+    grupos_tcc_collection.insert_one(grupo_tcc.dict())
+    return grupo_tcc
 
-def alunos_formados_por_semestre(ano, semestre):
+def consultar_grupo_tcc(id_grupo):
+    grupo = grupos_tcc_collection.find_one({"id_grupo": id_grupo})
+    orientador = professores_collection.find_one(
+        {"id": grupo["orientador"]}, {"_id": 0, "nome": 1}
+    )
     alunos = alunos_collection.find(
-        {
-            "formado": True,
-            "disciplinas": {"$elemMatch": {"semestre": f"{ano}-{semestre}"}}
-        },
-        {"_id": 0, "nome": 1, "ra": 1}
+        {"ra": {"$in": grupo["alunos"]}}, {"_id": 0, "nome": 1, "ra": 1}
+    )
+    return {
+        "id_grupo": grupo["id_grupo"],
+        "tema": grupo["tema"],
+        "orientador": orientador["nome"],
+        "alunos": list(alunos)
+    }
+
+def consultar_grupos_por_professor(id_professor):
+    grupos = grupos_tcc_collection.find({"orientador": id_professor}, {"_id": 0, "id_grupo": 1, "tema": 1})
+    return list(grupos)
+
+def consultar_alunos_grupo_tcc(id_grupo):
+    grupo = grupos_tcc_collection.find_one({"id_grupo": id_grupo})
+    alunos = alunos_collection.find(
+        {"ra": {"$in": grupo["alunos"]}}, {"_id": 0, "nome": 1, "email": 1, "telefone": 1}
     )
     return list(alunos)
-
-def professores_chefes_departamento():
-    chefes = professores_collection.find(
-        {"chefe_departamento": True},
-        {"_id": 0, "nome": 1, "departamento": 1}
-    )
-    return list(chefes)
 
 # Inserir dados no MongoDB
 for nome_curso in cursos_e_disciplinas.keys():
@@ -166,10 +181,7 @@ for _ in range(10):
 for _ in range(5):
     gerar_professor_aleatorio()
 
-print("Dados inseridos com sucesso!")
+for _ in range(3):
+    gerar_grupo_tcc_aleatorio()
 
-# Consultas de exemplo
-print(historico_escolar_aluno(1234567))
-print(disciplinas_ministradas_por_professor("Carlos Silva"))
-print(alunos_formados_por_semestre(2023, 1))
-print(professores_chefes_departamento())
+print("Dados inseridos com sucesso!")
