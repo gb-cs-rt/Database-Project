@@ -3,6 +3,9 @@ from typing import List, Optional
 from bson import ObjectId
 import random
 from pymongo import MongoClient
+from faker import Faker
+
+fake = Faker('pt_BR')
 
 # Conectar ao MongoDB
 client = MongoClient("mongodb://localhost:27017/")
@@ -67,9 +70,7 @@ class Professor(BaseModel):
 
 # Função para gerar nomes aleatórios
 def gerar_nome_aleatorio():
-    nomes = ["Ana", "João", "Carlos", "Mariana", "Pedro", "Julia", "Felipe", "Fernanda"]
-    sobrenomes = ["Silva", "Santos", "Martins", "Oliveira", "Souza", "Pereira", "Lima", "Costa"]
-    return f"{random.choice(nomes)} {random.choice(sobrenomes)}"
+    return fake.name()
 
 # Função para gerar uma disciplina aleatória
 def gerar_disciplina_aleatoria_para_curso(curso_nome):
@@ -146,3 +147,57 @@ for _ in range(5):
     professores_collection.insert_one(professor.dict(by_alias=True))
 
 print("Dados inseridos com sucesso!")
+
+def historico_escolar_aluno(matricula):
+    historico = alunos_collection.find_one(
+        {"matricula": matricula},
+        {"_id": 0, "disciplinas.codigo": 1, "disciplinas.nome": 1, 
+         "disciplinas.semestre": 1, "disciplinas.nota_final": 1}
+    )
+    return historico
+
+def disciplinas_ministradas_por_professor(nome_professor):
+    professor = professores_collection.find_one(
+        {"nome": nome_professor},
+        {"_id": 0, "disciplinas.semestre": 1, "disciplinas.nome": 1}
+    )
+    return professor
+
+def alunos_formados_por_semestre(ano, semestre):
+    alunos_formados = alunos_collection.find(
+        {
+            "formado": True,
+            "disciplinas": {"$elemMatch": {"semestre": f"{ano}-{semestre}"}}
+        },
+        {"_id": 0, "nome": 1, "matricula": 1}
+    )
+    return list(alunos_formados)
+
+def professores_chefes_departamento():
+    chefes = professores_collection.find(
+        {"chefe_departamento": True},
+        {"_id": 0, "nome": 1, "departamento": 1}
+    )
+    return list(chefes)
+
+def grupos_tcc():
+    alunos_tcc = alunos_collection.find(
+        {"tcc": {"$exists": True}},
+        {"_id": 0, "nome": 1, "tcc.tema": 1, "tcc.orientador": 1, "tcc.grupo": 1}
+    )
+    return list(alunos_tcc)
+
+# Histórico escolar do aluno com matrícula 1234567
+print(historico_escolar_aluno("1234567"))
+
+# Disciplinas ministradas pelo professor "Carlos Silva"
+print(disciplinas_ministradas_por_professor("Carlos Silva"))
+
+# Alunos formados no semestre 1 de 2023
+print(alunos_formados_por_semestre(2023, 1))
+
+# Listar professores que são chefes de departamento
+print(professores_chefes_departamento())
+
+# Listar grupos de TCC e seus orientadores
+print(grupos_tcc())
