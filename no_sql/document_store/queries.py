@@ -72,27 +72,42 @@ def get_historico_disciplinas_lecionadas(id_professor):
 def listar_alunos_formados(semester=None, year=None):
     print("\n3- Listar alunos que já se formaram (foram aprovados em todos os cursos de uma matriz curricular) em um determinado semestre de um ano")
     
+    if semester == 0:
+        semester = None
+    if year == 0:
+        year = None
+    
     pipeline = [
         {"$unwind": "$cursa"},
-  
+        # Add a field that combines year and semester for accurate latest check
+        {"$addFields": {
+            "combined_year_semester": {
+                "$concat": [
+                    {"$toString": "$cursa.ano"}, "-",
+                    {"$toString": "$cursa.semestre"}
+                ]
+            }
+        }},
+        # Sort courses for each student by year and semester descending
+        {"$sort": {"combined_year_semester": -1}},
+        # Group by student (ra) to collect all courses and find the latest course taken
         {"$group": {
             "_id": "$ra",
             "nome": {"$first": "$nome"},
             "id_curso": {"$first": "$id_curso"},
             "all_courses": {"$push": "$cursa"},
-            "latest_semester": {"$max": "$cursa.semestre"},
-            "latest_year": {"$max": "$cursa.ano"}
+            "latest_course": {"$first": "$cursa"}
         }},
-
+        # Conditionally filter by the latest semester and year if provided
         {"$match": {
             "$expr": {
                 "$and": [
-                    {"$or": [{"$eq": [semester, None]}, {"$eq": ["$latest_semester", semester]}]},
-                    {"$or": [{"$eq": [year, None]}, {"$eq": ["$latest_year", year]}]}
+                    {"$or": [{"$eq": [semester, None]}, {"$eq": ["$latest_course.semestre", semester]}]},
+                    {"$or": [{"$eq": [year, None]}, {"$eq": ["$latest_course.ano", year]}]}
                 ]
             }
         }},
-
+        # Ensure all subjects have been passed (media >= 5)
         {"$addFields": {
             "all_subjects_passed": {
                 "$allElementsTrue": {
@@ -105,18 +120,21 @@ def listar_alunos_formados(semester=None, year=None):
             }
         }},
         {"$match": {"all_subjects_passed": True}},
-
+        # Project the desired fields
         {"$project": {
             "_id": 0,
             "ra": "$_id",
             "nome": 1,
-            "latest_semester": 1,
-            "latest_year": 1
-        }}
+            "latest_semester": "$latest_course.semestre",
+            "latest_year": "$latest_course.ano"
+        }},
+        # Sort by latest year and latest semester
+        {"$sort": {"latest_year": 1, "latest_semester": 1}}
     ]
 
     results = list(db.aluno.aggregate(pipeline))
 
+    # Sort results if needed (additional sorting by RA for consistent ordering)
     results.sort(key=lambda x: (x["latest_year"], x["latest_semester"], x["ra"]))
 
     headers = ["RA", "Nome", "Último Semestre", "Último Ano"]
@@ -263,3 +281,5 @@ def mongodb_queries():
             print("Opção inválida.")
 
         time.sleep(1)
+
+mongodb_queries()

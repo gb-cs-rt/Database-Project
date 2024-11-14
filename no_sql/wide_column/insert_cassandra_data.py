@@ -1,8 +1,4 @@
 from cassandra.cluster import Cluster
-from cassandra.cqlengine import columns
-from cassandra.cqlengine.models import Model
-from cassandra.cqlengine.usertype import UserType
-from cassandra.cqlengine.management import sync_table, sync_type
 import json
 import os
 
@@ -31,12 +27,6 @@ class CursaEntry:
 def read_sql_data(table):
     with open(f"../../sql/sql_data/{table}.json", "r", encoding="utf-8") as f:
         return json.load(f)
-
-def leciona_entry_to_string(leciona_entry):
-    return f"{{id_curso: {leciona_entry.id_curso}, codigo_disciplina: {cql_quote(leciona_entry.codigo_disciplina)}, semestre: {leciona_entry.semestre}, ano: {leciona_entry.ano}, carga_horaria: {leciona_entry.carga_horaria}}}"
-
-def cursa_entry_to_string(cursa_entry):
-    return f"{{codigo_disciplina: {cql_quote(cursa_entry.codigo_disciplina)}, semestre: {cursa_entry.semestre}, ano: {cursa_entry.ano}, faltas: {cursa_entry.faltas}, media: {cursa_entry.media}}}"
 
 def insert_cassandra_data():
     # Change directory to the script's directory
@@ -100,18 +90,8 @@ def insert_cassandra_data():
         )
     """)
 
-    # Register UDTs with custom codecs
-    leciona_entry_udt = cluster.metadata.keyspaces['university'].user_types['leciona_entry']
-    cursa_entry_udt = cluster.metadata.keyspaces['university'].user_types['cursa_entry']
-
     cluster.register_user_type('university', 'leciona_entry', LecionaEntry)
     cluster.register_user_type('university', 'cursa_entry', CursaEntry)
-
-    leciona_entry_codec = MappingCodec(leciona_entry_udt, LecionaEntry, leciona_entry_to_string)
-    cursa_entry_codec = MappingCodec(cursa_entry_udt, CursaEntry, cursa_entry_to_string)
-
-    cluster.codec_options.register(leciona_entry_codec)
-    cluster.codec_options.register(cursa_entry_codec)
 
     # Create tables
     session.execute("""
