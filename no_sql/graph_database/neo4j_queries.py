@@ -262,30 +262,31 @@ def listar_alunos_formados(session, semestre=None, ano=None):
 
     # Base query para coletar os alunos que passaram em todas as disciplinas
     query = """
-    MATCH (a:Aluno)-[c:CURSA]->(d:Disciplina)
-    WHERE c.media >= 5
-    WITH a, COLLECT(d.codigo_disciplina) AS disciplinas_aprovadas, MAX(c.ano) AS ultimo_ano, MAX(c.semestre) AS ultimo_semestre
-    MATCH (a)-[:CURSA]->(todasDisciplinas:Disciplina)
-    WITH a, disciplinas_aprovadas, ultimo_ano, ultimo_semestre, COLLECT(todasDisciplinas.codigo_disciplina) AS todas_disciplinas
-    WHERE SIZE(disciplinas_aprovadas) = SIZE(todas_disciplinas) AND ALL(disciplina IN todas_disciplinas WHERE disciplina IN disciplinas_aprovadas)
+        MATCH (a:Aluno)-[c:CURSA]->(d:Disciplina)
+        WHERE c.media >= 5
+        WITH a, COLLECT(d.codigo_disciplina) AS disciplinas_aprovadas, MAX(c.ano * 10 + c.semestre) AS ultimo_periodo
+        MATCH (a)-[:CURSA]->(todasDisciplinas:Disciplina)
+        WITH a, disciplinas_aprovadas, ultimo_periodo, COLLECT(todasDisciplinas.codigo_disciplina) AS todas_disciplinas
+        WHERE SIZE(disciplinas_aprovadas) = SIZE(todas_disciplinas) AND ALL(disciplina IN todas_disciplinas WHERE disciplina IN disciplinas_aprovadas)
     """
 
-    # Filtrando por semestre e ano, se fornecido
+    # Filter by semester and year if provided
     if semestre is not None and ano is not None:
+        periodo = ano * 10 + semestre
         query += """
-        AND ultimo_semestre = $semestre AND ultimo_ano = $ano
+        AND ultimo_periodo = $periodo
         """
 
-    # Continuando para obter os detalhes finais
+    # Continue to get final details
     query += """
-    RETURN a.ra AS ra, a.nome AS nome, ultimo_semestre, ultimo_ano
+    RETURN a.ra AS ra, a.nome AS nome, ultimo_periodo
     ORDER BY a.ra
     """
 
-    # Executar a consulta
+    # Execute the query
     parameters = {}
     if semestre is not None and ano is not None:
-        parameters = {"semestre": semestre, "ano": ano}
+        parameters = {"periodo": periodo}
     result = session.run(query, parameters)
 
     # Processar os resultados para a saída da tabela
@@ -294,8 +295,8 @@ def listar_alunos_formados(session, semestre=None, ano=None):
         records.append({
             "ra": record["ra"],
             "nome": record["nome"],
-            "ultimo_semestre": record["ultimo_semestre"],
-            "ultimo_ano": record["ultimo_ano"]
+            "ultimo_semestre": record["ultimo_periodo"] % 10,
+            "ultimo_ano": record["ultimo_periodo"] // 10
         })
 
     # Exibir os resultados em uma tabela
@@ -312,28 +313,29 @@ def grafo_alunos_formados(session, semestre=None, ano=None):
     query = """
     MATCH (a:Aluno)-[c:CURSA]->(d:Disciplina)
     WHERE c.media >= 5
-    WITH a, COLLECT(d.codigo_disciplina) AS disciplinas_aprovadas, MAX(c.ano) AS ultimo_ano, MAX(c.semestre) AS ultimo_semestre
+    WITH a, COLLECT(d.codigo_disciplina) AS disciplinas_aprovadas, MAX(c.ano * 10 + c.semestre) AS ultimo_periodo
     MATCH (a)-[:CURSA]->(todasDisciplinas:Disciplina)
-    WITH a, disciplinas_aprovadas, ultimo_ano, ultimo_semestre, COLLECT(todasDisciplinas.codigo_disciplina) AS todas_disciplinas
+    WITH a, disciplinas_aprovadas, ultimo_periodo, COLLECT(todasDisciplinas.codigo_disciplina) AS todas_disciplinas
     WHERE SIZE(disciplinas_aprovadas) = SIZE(todas_disciplinas) AND ALL(disciplina IN todas_disciplinas WHERE disciplina IN disciplinas_aprovadas)
     """
 
-    # Filtrando por semestre e ano, se fornecido
+    # Filter by semester and year if provided
     if semestre is not None and ano is not None:
+        periodo = ano * 10 + semestre
         query += """
-        AND ultimo_semestre = $semestre AND ultimo_ano = $ano
+        AND ultimo_periodo = $periodo
         """
 
-    # Continuando para buscar os caminhos do grafo
+    # Continue to find graph paths
     query += """
     MATCH p=(a)-[c:CURSA]->(d)
     RETURN p
     """
 
-    # Executar a consulta
+    # Execute the query
     parameters = {}
     if semestre is not None and ano is not None:
-        parameters = {"semestre": semestre, "ano": ano}
+        parameters = {"periodo": periodo}
     result = session.run(query, parameters)
 
     # Processar resultados para visualização do grafo
