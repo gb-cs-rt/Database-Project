@@ -37,10 +37,10 @@ def get_historico_escolar(ra):
 
 # 2. histórico de disciplinas ministradas por qualquer professor, com semestre e ano
 
-def get_historico_disciplinas_lecionadas(ra_professor):
+def get_historico_disciplinas_lecionadas(id_professor):
     print("\n2- Histórico de disciplinas ministradas por qualquer professor, com semestre e ano\n")
 
-    professor = db.professor.find_one({"ra": ra_professor})
+    professor = db.professor.find_one({"id": id_professor})
     
     if professor and "leciona" in professor:
         teaching_history = []
@@ -58,8 +58,8 @@ def get_historico_disciplinas_lecionadas(ra_professor):
         
         teaching_history.sort(key=lambda x: (x["ano"], x["semestre"]))
         
-        headers = ["RA Professor", "Nome Professor", "Código Disciplina", "Nome Disciplina", "Semestre", "Ano"]
-        table = [[ra_professor, professor["nome"], record["codigo_disciplina"], record["nome_disciplina"], record["semestre"], record["ano"]] for record in teaching_history]
+        headers = ["ID Professor", "Nome Professor", "Código Disciplina", "Nome Disciplina", "Semestre", "Ano"]
+        table = [[id_professor, professor["nome"], record["codigo_disciplina"], record["nome_disciplina"], record["semestre"], record["ano"]] for record in teaching_history]
         print(tabulate(table, headers=headers, tablefmt="grid"))
     else:
         print("Este professor não possui histórico de disciplinas lecionadas.")
@@ -117,7 +117,7 @@ def listar_alunos_formados(semester=None, year=None):
 
     results = list(db.aluno.aggregate(pipeline))
 
-    results.sort(key=lambda x: (x["latest_year"], x["latest_semester"]))
+    results.sort(key=lambda x: (x["latest_year"], x["latest_semester"], x["ra"]))
 
     headers = ["RA", "Nome", "Último Semestre", "Último Ano"]
     table = [[student["ra"], student["nome"], student["latest_semester"], student["latest_year"]] for student in results]
@@ -150,15 +150,15 @@ def listar_chefes_departamento():
                 "_id": 0,
                 "nome_departamento": {"$arrayElemAt": ["$department_info.nome_departamento", 0]},
                 "chefe": "$nome",
-                "ra": 1
+                "id": 1
             }
         }
     ]
 
     results = list(db.professor.aggregate(pipeline))
 
-    headers = ["Nome Departamento", "Nome Chefe", "RA Chefe"]
-    table = [[result["nome_departamento"], result["chefe"], result["ra"]] for result in results]
+    headers = ["Nome Departamento", "Nome Chefe", "ID Chefe"]
+    table = [[result["nome_departamento"], result["chefe"], result["id"]] for result in results]
     if table:
         print(tabulate(table, headers=headers, tablefmt="grid"))
     else:
@@ -220,38 +220,46 @@ def listar_grupos_tcc():
 # Chamando as Queries
 # ===================
 
-while True:
+def mongodb_queries():
 
-    print("\n=== Escolha uma query: ===")
-    print("1- Histórico escolar de qualquer aluno, retornando o código e nome da disciplina, semestre e ano que a disciplina foi cursada e nota final")
-    print("2- Histórico de disciplinas ministradas por qualquer professor, com semestre e ano")
-    print("3- Listar alunos que já se formaram (foram aprovados em todos os cursos de uma matriz curricular) em um determinado semestre de um ano")
-    print("4- Listar todos os professores que são chefes de departamento, junto com o nome do departamento")
-    print("5- Saber quais alunos formaram um grupo de TCC e qual professor foi o orientador")
-    print("0- Sair")
-    print("===========================")
+    while True:
 
-    option = input("Escolha uma opção: ")
+        print("\n======================  ESCOLHA UMA QUERY  =======================")
+        print("1 - Histórico escolar de qualquer aluno,")
+        print("    retornando o código e nome da disciplina,")
+        print("    semestre e ano que a disciplina foi cursada e nota final.\n")
+        print("2 - Histórico de disciplinas ministradas por qualquer professor,")
+        print("    com semestre e ano.\n")
+        print("3 - Listar alunos que já se formaram (foram aprovados")
+        print("    em todos os cursos de uma matriz curricular) em um")
+        print("    determinado semestre de um ano.\n")
+        print("4 - Listar todos os professores que são chefes de departamento,")
+        print("    junto com o nome do departamento.\n")
+        print("5 - Saber quais alunos formaram um grupo de TCC")
+        print("    e qual professor foi o orientador.\n")
+        print("0 - Sair")
+        print("==================================================================")
 
-    if option == "1":
-        ra_aluno = int(input("Digite o RA do aluno: "))
-        get_historico_escolar(ra_aluno)
-    elif option == "2":
-        ra_professor = int(input("Digite o RA do professor: "))
-        get_historico_disciplinas_lecionadas(ra_professor)
-    elif option == "3":
-        semester = int(input("Digite o semestre (ou 0 para todos): "))
-        year = int(input("Digite o ano (ou 0 para todos): "))
-        listar_alunos_formados(semester, year)
-    elif option == "4":
-        listar_chefes_departamento()
-    elif option == "5":
-        listar_grupos_tcc()
-    elif option == "0":
-        break
-    else:
-        print("Opção inválida.")
 
-    time.sleep(1)
+        option = input("Escolha uma opção: ")
 
-# ===================
+        if option == "1":
+            ra_aluno = int(input("Digite o RA do aluno: "))
+            get_historico_escolar(ra_aluno)
+        elif option == "2":
+            id_professor = int(input("Digite o ID do professor: "))
+            get_historico_disciplinas_lecionadas(id_professor)
+        elif option == "3":
+            semester = int(input("Digite o semestre (ou 0 para todos): "))
+            year = int(input("Digite o ano (ou 0 para todos): "))
+            listar_alunos_formados(semester, year)
+        elif option == "4":
+            listar_chefes_departamento()
+        elif option == "5":
+            listar_grupos_tcc()
+        elif option == "0":
+            break
+        else:
+            print("Opção inválida.")
+
+        time.sleep(1)

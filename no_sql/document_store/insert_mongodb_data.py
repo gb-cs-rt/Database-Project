@@ -45,9 +45,31 @@ def insert_mongodb_data():
     # Insere os departamentos
     db.departamento.insert_many(departamentos)
 
+    # Insere as disciplinas
+    db.disciplina.insert_many(disciplinas)
+
+    # Insere os cursos
+    disciplina_dict = list(db.disciplina.find({}))
+
     # Insere os professores
     profs_to_insert = []
     for professor in professores:
+
+        leciona_to_insert = []
+        for leciona_entry in leciona:
+            if leciona_entry["id_professor"] == professor["id"]:
+                
+                disciplina_object = next(filter(lambda x: x["codigo_disciplina"] == leciona_entry["codigo_disciplina"], disciplina_dict))
+                disciplina_object_id = disciplina_object["_id"]
+
+                leciona_to_insert.append({
+                    "id_curso": leciona_entry["id_curso"],
+                    "id_disciplina": disciplina_object_id,
+                    "codigo_disciplina": disciplina_object["codigo_disciplina"],
+                    "semestre": leciona_entry["semestre"],
+                    "ano": leciona_entry["ano"],
+                    "carga_horaria": leciona_entry["carga_horaria"]
+                })
 
         grupos_to_insert = []
         for grupo in grupos_tcc:
@@ -61,7 +83,8 @@ def insert_mongodb_data():
             "email": professor["email"],
             "telefone": professor["telefone"],
             "salario": professor["salario"],
-            "grupos_tcc": grupos_to_insert
+            "grupos_tcc": grupos_to_insert,
+            "leciona": leciona_to_insert
         }
 
         profs_to_insert.append(prof_to_insert)
@@ -88,12 +111,6 @@ def insert_mongodb_data():
                     {"_id": chefe_object_id},
                     {"$set": {"chefe_departamento": departamento["nome_departamento"]}}
                 )
-
-    # Insere as disciplinas
-    db.disciplina.insert_many(disciplinas)
-
-    # Insere os cursos
-    disciplina_dict = list(db.disciplina.find({}))
 
     cursos_to_insert = []
     for curso in cursos:
@@ -123,115 +140,47 @@ def insert_mongodb_data():
         
     db.curso.insert_many(cursos_to_insert)
 
-    # curso_ids = db.curso.insert_many(cursos).inserted_ids
-    # cursos_dict = {curso["_id"]: curso for curso in db.curso.find()}
+    # Insere os alunos
 
-    # alunos = []
-    # ra_counter = 1
-    # for _ in range(100):
-    #     id_curso = random.choice(list(cursos_dict.keys()))
-    #     aluno = {
-    #         "ra": ra_counter,
-    #         "id_curso": id_curso,
-    #         "nome": fake.name(),
-    #         "email": fake.email(),
-    #         "telefone": fake.phone_number(),
-    #         "grupo_tcc": None
-    #     }
-    #     alunos.append(aluno)
-    #     ra_counter += 1
+    alunos_to_insert = []
+    for aluno in alunos:
+            
+        cursa_to_insert = []
+        for cursa_entry in cursa:
+            if cursa_entry["id_aluno"] == aluno["ra"]:
+                
+                disciplina_object = next(filter(lambda x: x["codigo_disciplina"] == cursa_entry["codigo_disciplina"], disciplina_dict))
+                disciplina_object_id = disciplina_object["_id"]
 
-    # aluno_ids = db.aluno.insert_many(alunos).inserted_ids
-    # alunos_dict = {aluno["_id"]: aluno for aluno in db.aluno.find()}
+                cursa_to_insert.append({
+                    "id_disciplina": disciplina_object_id,
+                    "codigo_disciplina": disciplina_object["codigo_disciplina"],
+                    "semestre": int(cursa_entry["semestre"]),
+                    "ano": int(cursa_entry["ano"]),
+                    "media": float(cursa_entry["media"]),
+                    "faltas": int(cursa_entry["faltas"])
+                })
+        
+        grupo_tcc = None
+        for grupo in grupos_tcc:
+            if aluno["ra"] == grupo["ra"]:
+                grupo_tcc = grupo["id_grupo"]
 
-    # disciplinas = ['Comunicação e Expressão', 'Cálculo I', 'Cálculo II', 'Cálculo III', 'Álgebra Linear', 'Física I', 
-    #             'Física II', 'Física III', 'Química Geral', 'Química Orgânica', 'Programação I', 'Programação II', 
-    #             'Programação III', 'Estrutura de Dados', 'Banco de Dados', 'Redes de Computadores', 
-    #             'Sistemas Operacionais', 'Engenharia de Software', 'Inteligência Artificial', 'Computação Gráfica', 
-    #             'Sistemas Distribuídos', 'Segurança da Informação', 'Empreendedorismo', 'Gestão de Projetos', 
-    #             'Tópicos Especiais em Computação', 'Ética e Cidadania', 'Metodologia Científica', 
-    #             'Trabalho de Conclusão de Curso']
-    # disciplina_docs = []
-    # for _ in range(len(disciplinas)):
-    #     disciplina_docs.append({
-    #         "codigo_disciplina": fake.unique.bothify(text='??###'),
-    #         "nome_departamento": random.choice(departamentos),
-    #         "nome": disciplinas.pop(random.randint(0, len(disciplinas) - 1)),
-    #         "carga_horaria": random.randint(30, 180)
-    #     })
-    # disciplinas_inserted = db.disciplina.insert_many(disciplina_docs).inserted_ids
+        aluno_to_insert = {
+            "ra": aluno["ra"],
+            "id_curso": aluno["id_curso"],
+            "nome": aluno["nome"],
+            "email": aluno["email"],
+            "telefone": aluno["telefone"],
+            "grupo_tcc": grupo_tcc,
+            "cursa": cursa_to_insert
+        }
 
-    # disciplinas_dict = {disc["codigo_disciplina"]: disc for disc in db.disciplina.find()}
+        alunos_to_insert.append(aluno_to_insert)
 
-    # for curso in db.curso.find():
-    #     disciplinas_matriz = random.sample(list(disciplinas_dict.values()), k=random.randint(3, 8))
-    #     matriz_curricular = []
-    #     for disciplina in disciplinas_matriz:
-    #         matriz_curricular.append({
-    #             "codigo_disciplina": disciplina["codigo_disciplina"],
-    #             "id_disciplina": disciplina["_id"]
-    #         })
-    #     db.curso.update_one(
-    #         {"_id": curso["_id"]},
-    #         {"$set": {"matriz_curricular": matriz_curricular}}
-    #     )
+    db.aluno.insert_many(alunos_to_insert)
 
-    # for aluno in db.aluno.find():
-    #     id_curso = aluno["id_curso"]
-    #     disciplinas_matriz = list(db.curso.find_one({"_id": id_curso})["matriz_curricular"])
-    #     cursa = []
-    #     for disciplina_entry in disciplinas_matriz:
-    #         disciplina = disciplinas_dict.get(disciplina_entry["codigo_disciplina"])
-    #         cursa.append({
-    #             "codigo_disciplina": disciplina["codigo_disciplina"],
-    #             "id_disciplina": disciplina["_id"],
-    #             "semestre": random.randint(1, 2),
-    #             "ano": random.randint(2019, 2024),
-    #             "media": round(random.uniform(0, 10) if random.random() < 0.3 else random.uniform(5, 10), 2),
-    #             "faltas": random.randint(0, 10)
-    #         })
-    #     db.aluno.update_one({"_id": aluno["_id"]}, {"$set": {"cursa": cursa}})
-
-    # qtd_grupos = round(len(alunos) / 3)
-    # qtd_alunos_por_grupo = 3
-    # grupos_tcc = []
-
-    # alunos_list = list(alunos_dict.keys())
-
-    # for i in range(qtd_grupos):
-    #     id_grupo = i + 1
-    #     id_professor = random.choice(list(professores_dict.keys()))
-    #     grupo_members = []
-    #     for _ in range(qtd_alunos_por_grupo):
-    #         ra = alunos_list.pop(random.randint(0, len(alunos_list) - 1))
-    #         grupo_members.append(ra)
-    #         db.aluno.update_one({"_id": ra}, {"$set": {"grupo_tcc": id_grupo}})
-    #     db.professor.update_one({"_id": id_professor}, {"$push": {"grupos_tcc": id_grupo}})
-    #     grupos_tcc.append({
-    #         "id_grupo": id_grupo,
-    #         "id_professor": id_professor,
-    #         "members": grupo_members
-    #     })
-
-    # for _ in range(80):
-    #     id_professor = random.choice(list(professores_dict.keys()))
-    #     id_curso = random.choice(list(cursos_dict.keys()))
-    #     disciplina = random.choice(list(disciplinas_dict.values()))
-    #     leciona_entry = {
-    #         "id_curso": id_curso,
-    #         "codigo_disciplina": disciplina["codigo_disciplina"],
-    #         "id_disciplina": disciplina["_id"],
-    #         "semestre": random.randint(1, 2),
-    #         "ano": random.randint(2019, 2024),
-    #         "carga_horaria": random.randint(30, 60)
-    #     }
-
-    #     db.professor.update_one(
-    #         {"_id": id_professor},
-    #         {"$push": {"leciona": leciona_entry}}
-    #     )
-
-    print("Database and tables created, and data inserted successfully!")
+    print("Dados inseridos no MongoDB com sucesso!")
 
 def insert_new_mongodb_data():
 
