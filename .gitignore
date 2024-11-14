@@ -1,2 +1,4 @@
 __pycache__/
 sql/sql_data/
+no_sql/graph_database/lib/
+*.html
