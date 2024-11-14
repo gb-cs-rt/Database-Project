@@ -86,7 +86,7 @@ def insert_neo4j_data():
                 MATCH (a:Aluno {ra: $ra}), (di:Disciplina {codigo_disciplina: $codigo_disciplina})
                 MERGE (a)-[:CURSA {semestre: $semestre, ano: $ano, media: $media, faltas: $faltas}]->(di)
             """, ra=cursa_entry["id_aluno"], codigo_disciplina=cursa_entry["codigo_disciplina"], 
-            semestre=cursa_entry["semestre"], ano=cursa_entry["ano"], media=cursa_entry["media"], faltas=cursa_entry["faltas"])
+            semestre=int(cursa_entry["semestre"]), ano=int(cursa_entry["ano"]), media=float(cursa_entry["media"]), faltas=int(cursa_entry["faltas"]))
         
         for matriz in matrizes_curriculares:
             session.run("""
