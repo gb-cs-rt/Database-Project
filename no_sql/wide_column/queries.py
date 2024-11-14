@@ -211,7 +211,7 @@ def cassandra_queries():
 
     while True:
 
-        print("\n======================  ESCOLHA UMA QUERY  =======================")
+        print("\n=================  ESCOLHA UMA QUERY (Cassandra)  ==================")
         print("1 - Histórico escolar de qualquer aluno,")
         print("    retornando o código e nome da disciplina,")
         print("    semestre e ano que a disciplina foi cursada e nota final.\n")
@@ -224,8 +224,8 @@ def cassandra_queries():
         print("    junto com o nome do departamento.\n")
         print("5 - Saber quais alunos formaram um grupo de TCC")
         print("    e qual professor foi o orientador.\n")
-        print("0 - Sair")
-        print("==================================================================")
+        print("0 - Voltar")
+        print("=====================================================================")
 
 
         option = input("Escolha uma opção: ")
@@ -250,5 +250,3 @@ def cassandra_queries():
             print("Opção inválida.")
 
         time.sleep(1)
-
-cassandra_queries()
