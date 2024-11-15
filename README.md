@@ -62,6 +62,7 @@ Para cada banco não relacional, serão descritos: estrutura dos dados armazenad
     "nome": (String),
     "email": (String),
     "telefone": (String),
+    "grupo_tcc": (Int32),
     "cursa": Array<{
                         "id_disciplina": (ObjectID),
                         "codigo_disciplina": (String),
@@ -70,6 +71,63 @@ Para cada banco não relacional, serão descritos: estrutura dos dados armazenad
                         "media": (Double),
                         "faltas": (Int32)
                    }>
-    
+}
+```
+
+- Curso
+```
+{
+    "_id": (ObjectID),
+    "id_curso": (Int32),
+    "nome_departamento": (String),
+    "nome": (String),
+    "horas_complementares": (String),
+    "faltas": (String),
+    "matriz_curricular": Array<{
+                                    "id_disciplina": (ObjectID),
+                                    "codigo_disciplina": (String),
+                               }>
+}
+```
+
+- Departamento
+```
+{
+    "_id": (ObjectID),
+    "nome_departamento": (String),
+    "chefe": (ObjectID)
+}
+```
+
+- Disciplina
+```
+{
+    "_id": (ObjectID),
+    "codigo_disciplina": (String),
+    "nome_departamento": (String),
+    "nome": (String),
+    "carga_horaria": (String)
+}
+```
+
+- Professor
+```
+{
+    "_id": (ObjectID),
+    "id": (Int32),
+    "nome": (String),
+    "nome_departamento": (String),
+    "email": (String),
+    "telefone": (String),
+    "salario": (String),
+    "grupos_tcc": Array<Int32>,
+    "leciona": Array<{
+                        "id_curso": (Int32),
+                        "id_disciplina": (ObjectID),
+                        "codigo_disciplina": (String),
+                        "semestre": (Int32),
+                        "ano": (Int32),
+                        "carga_horaria": (String)
+                     }>
 }
 ```
