@@ -29,10 +29,10 @@ def read_sql_data(table):
         return json.load(f)
 
 def insert_cassandra_data():
-    # Change directory to the script's directory
+    # Muda o diretório para o diretório do script
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    # Read data from JSON files
+    # Lê os dados dos arquivos JSON
     alunos = read_sql_data("aluno")
     cursa = read_sql_data("cursa")
     cursos = read_sql_data("curso")
@@ -44,7 +44,7 @@ def insert_cassandra_data():
     leciona = read_sql_data("leciona")
     grupos_tcc = read_sql_data("grupotcc")
 
-    # Connect to the Cassandra cluster
+    # Conecta ao Cassandra
     try:
         cluster = Cluster(['127.0.0.1'])  # Adjust the contact points as needed
         session = cluster.connect()
@@ -52,7 +52,7 @@ def insert_cassandra_data():
         print("Error connecting to Cassandra:", e)
         return
 
-    # Create keyspace 'university' if it doesn't exist
+    # Cria o keyspace e seta o keyspace
     session.execute("""
         CREATE KEYSPACE IF NOT EXISTS university
         WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'}
@@ -60,7 +60,7 @@ def insert_cassandra_data():
 
     session.set_keyspace('university')
 
-    # Drop tables if they exist
+    # Apaga as tabelas e tipos de dados se existirem
     session.execute("DROP TABLE IF EXISTS departamento")
     session.execute("DROP TABLE IF EXISTS disciplina")
     session.execute("DROP TABLE IF EXISTS professor")
@@ -69,7 +69,7 @@ def insert_cassandra_data():
     session.execute("DROP TYPE IF EXISTS leciona_entry")
     session.execute("DROP TYPE IF EXISTS cursa_entry")
 
-    # Create User-Defined Types (UDTs)
+    # Cria os tipos de dados customizados
     session.execute("""
         CREATE TYPE IF NOT EXISTS leciona_entry (
             id_curso int,
@@ -93,7 +93,7 @@ def insert_cassandra_data():
     cluster.register_user_type('university', 'leciona_entry', LecionaEntry)
     cluster.register_user_type('university', 'cursa_entry', CursaEntry)
 
-    # Create tables
+    # Cria a tabela 'departamento'
     session.execute("""
         CREATE TABLE departamento (
             nome_departamento text PRIMARY KEY,
@@ -101,6 +101,7 @@ def insert_cassandra_data():
         )
     """)
 
+    # Cria a tabela 'disciplina'
     session.execute("""
         CREATE TABLE disciplina (
             codigo_disciplina text PRIMARY KEY,
@@ -110,6 +111,7 @@ def insert_cassandra_data():
         )
     """)
 
+    # Cria a tabela 'professor'
     session.execute("""
         CREATE TABLE professor (
             id int PRIMARY KEY,
@@ -124,6 +126,7 @@ def insert_cassandra_data():
         )
     """)
 
+    # Cria a tabela 'curso'
     session.execute("""
         CREATE TABLE curso (
             id_curso int PRIMARY KEY,
@@ -135,6 +138,7 @@ def insert_cassandra_data():
         )
     """)
 
+    # Cria a tabela 'aluno'
     session.execute("""
         CREATE TABLE aluno (
             ra int PRIMARY KEY,
@@ -147,23 +151,23 @@ def insert_cassandra_data():
         )
     """)
 
-    # Insert data into 'departamento'
+    # Insere os dados na tabela 'departamento'
     for dept in departamentos:
         session.execute("""
             INSERT INTO departamento (nome_departamento)
             VALUES (%s)
         """, (dept['nome_departamento'],))
 
-    # Insert data into 'disciplina'
+    # Insere os dados na tabela 'disciplina'
     for disc in disciplinas:
         session.execute("""
             INSERT INTO disciplina (codigo_disciplina, nome, carga_horaria, nome_departamento)
             VALUES (%s, %s, %s, %s)
         """, (disc['codigo_disciplina'], disc['nome'], int(disc['carga_horaria']), disc['nome_departamento']))
 
-    # Insert data into 'professor'
+    # Insere os dados na tabela 'professor'
     for professor in professores:
-        # Process 'leciona' entries
+        # Insere os dados de 'leciona' na tabela 'professor'
         leciona_entries = []
         for leciona_entry in leciona:
             if leciona_entry['id_professor'] == professor['id']:
@@ -176,10 +180,10 @@ def insert_cassandra_data():
                 )
                 leciona_entries.append(leciona_instance)
 
-        # Process 'grupos_tcc' entries
+        # Insere os dados de 'grupos_tcc' na tabela 'professor'
         grupos_ids = [int(grupo['id_grupo']) for grupo in grupos_tcc if grupo['id_professor'] == professor['id']]
 
-        # Insert professor data
+        # Insere os dados do professor na tabela 'professor'
         session.execute("""
             INSERT INTO professor (id, nome, nome_departamento, email, telefone, salario, grupos_tcc, leciona)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
@@ -194,28 +198,28 @@ def insert_cassandra_data():
             leciona_entries
         ))
 
-    # Update 'departamento' with 'chefe_id'
+    # Atualiza as tabelas 'departamento' e 'professor' com os chefes de departamento
     for chefe_departamento in chefes_departamento:
         nome_departamento = chefe_departamento['nome_departamento']
         id_professor = int(chefe_departamento['id_professor'])
 
-        # Update 'departamento' table
+        # Atualiza 'departamento' com 'chefe_id'
         session.execute("""
             UPDATE departamento
             SET chefe_id = %s
             WHERE nome_departamento = %s
         """, (id_professor, nome_departamento))
 
-        # Update 'professor' table with 'chefe_departamento'
+        # Atualiza 'professor' com 'chefe_departamento'
         session.execute("""
             UPDATE professor
             SET chefe_departamento = %s
             WHERE id = %s
         """, (nome_departamento, id_professor))
 
-    # Insert data into 'curso'
+    # Insere os dados na tabela 'curso'
     for curso in cursos:
-        # Process 'matriz_curricular'
+        # Insere os dados de 'matriz_curricular' na tabela 'curso'
         matriz = [matriz_entry['codigo_disciplina'] for matriz_entry in matrizes_curriculares if matriz_entry['id_curso'] == curso['id_curso']]
 
         session.execute("""
@@ -230,9 +234,9 @@ def insert_cassandra_data():
             matriz
         ))
 
-    # Insert data into 'aluno'
+    # Insere os dados na tabela 'aluno'
     for aluno in alunos:
-        # Process 'cursa' entries
+        # Insere os dados de 'cursa' na tabela 'aluno'
         cursa_entries = []
         for cursa_entry in cursa:
             if cursa_entry['id_aluno'] == aluno['ra']:
@@ -245,10 +249,10 @@ def insert_cassandra_data():
                 )
                 cursa_entries.append(cursa_dict)
 
-        # Get 'grupo_tcc'
+        # Insere os dados de 'grupos_tcc' na tabela 'aluno'
         grupo_tcc = next((int(grupo['id_grupo']) for grupo in grupos_tcc if grupo['ra'] == aluno['ra']), None)
 
-        # Insert aluno data
+        # Insere os dados do aluno na tabela 'aluno'
         session.execute("""
             INSERT INTO aluno (ra, id_curso, nome, email, telefone, grupo_tcc, cursa)
             VALUES (%s, %s, %s, %s, %s, %s, %s)

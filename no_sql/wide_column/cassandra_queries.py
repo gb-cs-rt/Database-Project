@@ -2,19 +2,11 @@ from cassandra.cluster import Cluster
 from tabulate import tabulate
 import time
 
-try:
-    cluster = Cluster(['127.0.0.1'])  # Adjust the contact points as needed
-    session = cluster.connect()
-    session.set_keyspace('university')
-except Exception as e:
-    print("Error connecting to Cassandra:", e)
-
 # 1. histórico escolar de qualquer aluno, retornando o código e nome da disciplina, semestre e ano que a disciplina foi cursada e nota final
 
 def get_historico_escolar(session, ra):
     print("\n1- Histórico escolar de qualquer aluno, retornando o código e nome da disciplina, semestre e ano que a disciplina foi cursada e nota final\n")
     
-    # Get the student record
     rows = session.execute("""
         SELECT cursa FROM aluno WHERE ra = %s
     """, (ra,))
@@ -23,7 +15,7 @@ def get_historico_escolar(session, ra):
     for row in rows:
         if row.cursa:
             for course in row.cursa:
-                # Query for the course name from the disciplina table
+
                 disciplina_row = session.execute("""
                     SELECT nome FROM disciplina WHERE codigo_disciplina = %s
                 """, (course.codigo_disciplina,)).one()
@@ -38,7 +30,6 @@ def get_historico_escolar(session, ra):
                     }
                     academic_record.append(record)
 
-    # Sorting the results
     academic_record.sort(key=lambda x: (x["ano"], x["semestre"]))
     
     headers = ["RA", "Código Disciplina", "Nome Disciplina", "Semestre", "Ano", "Média Final"]
@@ -53,7 +44,6 @@ def get_historico_escolar(session, ra):
 def get_historico_disciplinas_lecionadas(session, id_professor):
     print("\n2- Histórico de disciplinas ministradas por qualquer professor, com semestre e ano\n")
     
-    # Get the professor record
     rows = session.execute("""
         SELECT leciona, nome FROM professor WHERE id = %s
     """, (id_professor,))
@@ -62,7 +52,7 @@ def get_historico_disciplinas_lecionadas(session, id_professor):
     for row in rows:
         if row.leciona:
             for leciona_entry in row.leciona:
-                # Query for the course name from the disciplina table
+
                 disciplina_row = session.execute("""
                     SELECT nome FROM disciplina WHERE codigo_disciplina = %s
                 """, (leciona_entry.codigo_disciplina,)).one()
@@ -77,7 +67,6 @@ def get_historico_disciplinas_lecionadas(session, id_professor):
                     }
                     teaching_history.append(record)
     
-    # Sorting the results
     teaching_history.sort(key=lambda x: (x["ano"], x["semestre"]))
     
     headers = ["ID Professor", "Nome Professor", "Código Disciplina", "Nome Disciplina", "Semestre", "Ano"]
@@ -107,7 +96,7 @@ def listar_alunos_formados(session, semester=None, year=None):
     graduated_students = []
     for row in rows:
         if row.cursa:
-            # Check if the student passed all courses (assuming media >= 5 means passing)
+
             all_passed = all(course.media >= 5 for course in row.cursa)
             latest_semester = max(row.cursa, key=lambda x: (x.ano, x.semestre)).semestre
             latest_year = max(row.cursa, key=lambda x: (x.ano, x.semestre)).ano
@@ -135,7 +124,6 @@ def listar_alunos_formados(session, semester=None, year=None):
 def listar_chefes_departamento(session):
     print("\n4- Listar todos os professores que são chefes de departamento, junto com o nome do departamento\n")
     
-    # Fetch all departments
     rows = session.execute("""
         SELECT nome_departamento, chefe_id FROM departamento
     """)
@@ -143,7 +131,7 @@ def listar_chefes_departamento(session):
     results = []
     for row in rows:
         if row.chefe_id is not None:
-            # Fetch professor details
+
             professor = session.execute("""
                 SELECT nome FROM professor WHERE id = %s
             """, (row.chefe_id,)).one()
@@ -155,7 +143,6 @@ def listar_chefes_departamento(session):
                     "id": row.chefe_id
                 })
 
-    # Sort results by 'chefe_id'
     results.sort(key=lambda x: x["id"])
 
     headers = ["Nome Departamento", "Nome Chefe", "ID Chefe"]
@@ -170,7 +157,6 @@ def listar_chefes_departamento(session):
 def listar_grupos_tcc(session):
     print("\n5- Saber quais alunos formaram um grupo de TCC e qual professor foi o orientador\n")
     
-    # Fetch all students with a non-null grupo_tcc
     rows = session.execute("""
         SELECT ra, nome, grupo_tcc FROM aluno
     """)
@@ -178,12 +164,12 @@ def listar_grupos_tcc(session):
     results = []
     for row in rows:
         if row.grupo_tcc is not None:
-            # Fetch all professors and check if any of their grupos_tcc contains the student's grupo_tcc
+
             professors = session.execute("""
                 SELECT id, nome, grupos_tcc FROM professor
             """)
             for professor in professors:
-                # Ensure grupos_tcc is not None before checking for membership
+
                 if professor.grupos_tcc is not None and row.grupo_tcc in professor.grupos_tcc:
                     results.append({
                         "id_grupo": row.grupo_tcc,
@@ -191,9 +177,8 @@ def listar_grupos_tcc(session):
                         "nome_aluno": row.nome,
                         "orientador": professor.nome
                     })
-                    break  # Found the advisor, no need to check other professors
+                    break
 
-    # Sort results by 'id_grupo'
     results.sort(key=lambda x: x["id_grupo"])
 
     headers = ["ID Grupo", "RA Aluno", "Nome Aluno", "Orientador"]
@@ -208,6 +193,13 @@ def listar_grupos_tcc(session):
 # ===================
 
 def cassandra_queries():
+
+    try:
+        cluster = Cluster(['127.0.0.1'])
+        session = cluster.connect()
+        session.set_keyspace('university')
+    except Exception as e:
+        print("Error connecting to Cassandra:", e)
 
     while True:
 
@@ -225,7 +217,7 @@ def cassandra_queries():
         print("5 - Saber quais alunos formaram um grupo de TCC")
         print("    e qual professor foi o orientador.\n")
         print("0 - Voltar")
-        print("=====================================================================")
+        print("====================================================================")
 
 
         option = input("Escolha uma opção: ")

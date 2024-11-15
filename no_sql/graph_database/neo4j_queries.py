@@ -418,6 +418,320 @@ def grafo_alunos_formados(session, semestre=None, ano=None):
     
     webbrowser.open(html_file)
 
+# 4. listar todos os professores que são chefes de departamento, junto com o nome do departamento
+
+def listar_chefes_departamento(session):
+    print("\n4- Listar todos os professores que são chefes de departamento, junto com o nome do departamento\n")
+
+    # Query para buscar chefes de departamento
+    query = """
+    MATCH (p:Professor)-[:CHEFE_DE]->(d:Departamento)
+    RETURN d.nome_departamento AS nome_departamento, p.nome AS chefe, p.id AS id
+    ORDER BY d.nome_departamento
+    """
+
+    # Executar a consulta
+    result = session.run(query)
+
+    # Processar os resultados para a saída da tabela
+    records = []
+    for record in result:
+        records.append({
+            "nome_departamento": record["nome_departamento"],
+            "chefe": record["chefe"],
+            "id": record["id"]
+        })
+
+    # Exibir os resultados em uma tabela
+    if records:
+        headers = ["Nome Departamento", "Nome Chefe", "ID Chefe"]
+        table = [[rec["nome_departamento"], rec["chefe"], rec["id"]] for rec in records]
+        from tabulate import tabulate
+        print(tabulate(table, headers=headers, tablefmt="grid"))
+    else:
+        print("Nenhum chefe de departamento encontrado.")
+
+def grafo_chefes_departamento(session):
+    # Query para buscar chefes de departamento
+    query = """
+    MATCH p=(prof:Professor)-[:CHEFE_DE]->(d:Departamento)
+    RETURN p
+    """
+
+    # Executar a consulta
+    result = session.run(query)
+
+    # Processar resultados para visualização do grafo
+    nodes = {}
+    edges = []
+
+    for record in result:
+        for segment in record["p"].relationships:
+            start_node = segment.start_node
+            end_node = segment.end_node
+            
+            start_node_id = start_node.element_id
+            end_node_id = end_node.element_id
+            
+            start_label = list(start_node.labels)[0] if start_node.labels else "Node"
+            end_label = list(end_node.labels)[0] if end_node.labels else "Node"
+            
+            # Atribuir rótulo e cor para os nós
+            if start_label == "Professor":
+                display_label = f"ID: {start_node.get('id', 'N/A')}"
+                node_color = "lightcoral"  # Cor para professores
+            elif start_label == "Departamento":
+                display_label = f"{start_node.get('nome_departamento', 'N/A')}"
+                node_color = "lightskyblue"  # Cor para departamentos
+            else:
+                display_label = start_label
+                node_color = "gray"
+            
+            if start_node_id not in nodes:
+                nodes[start_node_id] = {
+                    "label": display_label,
+                    "properties": dict(start_node.items()),
+                    "color": node_color
+                }
+            
+            if end_label == "Professor":
+                display_label = f"ID: {end_node.get('id', 'N/A')}"
+                node_color = "lightcoral"  # Cor para professores
+            elif end_label == "Departamento":
+                display_label = f"{end_node.get('nome_departamento', 'N/A')}"
+                node_color = "lightskyblue"  # Cor para departamentos
+            else:
+                display_label = end_label
+                node_color = "gray"
+            
+            if end_node_id not in nodes:
+                nodes[end_node_id] = {
+                    "label": display_label,
+                    "properties": dict(end_node.items()),
+                    "color": node_color
+                }
+            
+            edge_properties = " | ".join([f"{key}: {value}" for key, value in segment.items()])
+            edges.append({
+                "source": start_node_id,
+                "target": end_node_id,
+                "type": segment.type,
+                "properties": dict(segment.items()),
+                "title": edge_properties
+            })
+
+    net = Network(notebook=False, directed=True)
+
+    for node_id, node_data in nodes.items():
+        title = " | ".join([f"{key}: {value}" for key, value in node_data["properties"].items()])
+        net.add_node(
+            node_id, 
+            label=node_data["label"], 
+            title=title, 
+            color=node_data["color"],
+            font={"vadjust": -40, "align": "middle"}
+        )
+
+    for edge in edges:
+        net.add_edge(edge["source"], edge["target"], title=edge["title"], label=edge["type"])
+
+    html_file = "query4.html"
+    net.write_html(html_file)
+    print(f"Grafo salvo como {html_file}.")
+    
+    webbrowser.open(html_file)
+
+# 5. saber quais alunos formaram um grupo de TCC e qual professor foi o orientador
+
+def listar_grupos_tcc(session):
+    print("\n5- Saber quais alunos formaram um grupo de TCC e qual professor foi o orientador\n")
+
+    # Query para buscar grupos de TCC com membros (alunos) e orientadores (professores)
+    query = """
+    MATCH (g:GrupoTCC)<-[:MEMBRO_DE]-(a:Aluno)
+    OPTIONAL MATCH (p:Professor)-[:ORIENTA]->(g)
+    RETURN g.id_grupo AS id_grupo, a.ra AS ra, a.nome AS nome_aluno, p.nome AS orientador
+    ORDER BY g.id_grupo
+    """
+
+    # Executar a consulta
+    result = session.run(query)
+
+    # Processar os resultados para a saída da tabela
+    records = []
+    for record in result:
+        records.append({
+            "id_grupo": record["id_grupo"],
+            "ra": record["ra"],
+            "nome_aluno": record["nome_aluno"],
+            "orientador": record["orientador"] if record["orientador"] else "Nenhum"
+        })
+
+    # Exibir os resultados em uma tabela
+    if records:
+        headers = ["ID Grupo", "RA Aluno", "Nome Aluno", "Orientador"]
+        table = [[rec["id_grupo"], rec["ra"], rec["nome_aluno"], rec["orientador"]] for rec in records]
+        from tabulate import tabulate
+        print(tabulate(table, headers=headers, tablefmt="grid"))
+    else:
+        print("Nenhum grupo de TCC encontrado.")
+
+def grafo_grupos_tcc(session):
+    # Query to fetch TCC groups with members (students) and advisors (professors)
+    query = """
+    MATCH p=(g:GrupoTCC)<-[:MEMBRO_DE]-(a:Aluno)
+    OPTIONAL MATCH q=(prof:Professor)-[:ORIENTA]->(g)
+    RETURN p, q
+    """
+
+    # Execute the query
+    result = session.run(query)
+
+    # Process results for graph visualization
+    nodes = {}
+    edges = []  # Use a list for edges
+    seen_edges = set()  # Use a set to track unique edges
+
+    for record in result:
+        # Process the relationship between Aluno and GrupoTCC
+        if record.get("p"):
+            for segment in record["p"].relationships:
+                start_node = segment.start_node
+                end_node = segment.end_node
+
+                start_node_id = start_node.element_id
+                end_node_id = end_node.element_id
+
+                start_label = list(start_node.labels)[0] if start_node.labels else "Node"
+                end_label = list(end_node.labels)[0] if end_node.labels else "Node"
+
+                # Assign label and color for nodes
+                if start_label == "Aluno":
+                    display_label = f"RA: {start_node.get('ra', 'N/A')}"
+                    node_color = "lightblue"
+                elif start_label == "GrupoTCC":
+                    display_label = f"{start_node.get('id_grupo', 'N/A')}"
+                    node_color = "lightyellow"
+                else:
+                    display_label = start_label
+                    node_color = "gray"
+
+                if start_node_id not in nodes:
+                    nodes[start_node_id] = {
+                        "label": display_label,
+                        "properties": dict(start_node.items()),
+                        "color": node_color
+                    }
+
+                if end_label == "Aluno":
+                    display_label = f"RA: {end_node.get('ra', 'N/A')}"
+                    node_color = "lightblue"
+                elif end_label == "GrupoTCC":
+                    display_label = f"{end_node.get('id_grupo', 'N/A')}"
+                    node_color = "lightyellow"
+                else:
+                    display_label = end_label
+                    node_color = "gray"
+
+                if end_node_id not in nodes:
+                    nodes[end_node_id] = {
+                        "label": display_label,
+                        "properties": dict(end_node.items()),
+                        "color": node_color
+                    }
+
+                edge_key = (start_node_id, end_node_id, segment.type)
+                if edge_key not in seen_edges:
+                    edge_properties = " | ".join([f"{key}: {value}" for key, value in segment.items()])
+                    seen_edges.add(edge_key)
+                    edges.append({
+                        "source": start_node_id,
+                        "target": end_node_id,
+                        "type": segment.type,
+                        "properties": dict(segment.items()),
+                        "title": edge_properties
+                    })
+
+        # Process the relationship between Professor and GrupoTCC (if exists)
+        if record.get("q"):
+            for segment in record["q"].relationships:
+                start_node = segment.start_node
+                end_node = segment.end_node
+
+                start_node_id = start_node.element_id
+                end_node_id = end_node.element_id
+
+                start_label = list(start_node.labels)[0] if start_node.labels else "Node"
+                end_label = list(end_node.labels)[0] if end_node.labels else "Node"
+
+                # Assign label and color for nodes
+                if start_label == "Professor":
+                    display_label = f"ID: {start_node.get('id', 'N/A')}"
+                    node_color = "lightcoral"
+                elif start_label == "GrupoTCC":
+                    display_label = f"{start_node.get('id_grupo', 'N/A')}"
+                    node_color = "lightyellow"
+                else:
+                    display_label = start_label
+                    node_color = "gray"
+
+                if start_node_id not in nodes:
+                    nodes[start_node_id] = {
+                        "label": display_label,
+                        "properties": dict(start_node.items()),
+                        "color": node_color
+                    }
+
+                if end_label == "Professor":
+                    display_label = f"ID: {end_node.get('id', 'N/A')}"
+                    node_color = "lightcoral"
+                elif end_label == "GrupoTCC":
+                    display_label = f"{end_node.get('id_grupo', 'N/A')}"
+                    node_color = "lightyellow"
+                else:
+                    display_label = end_label
+                    node_color = "gray"
+
+                if end_node_id not in nodes:
+                    nodes[end_node_id] = {
+                        "label": display_label,
+                        "properties": dict(end_node.items()),
+                        "color": node_color
+                    }
+
+                edge_key = (start_node_id, end_node_id, segment.type)
+                if edge_key not in seen_edges:
+                    edge_properties = " | ".join([f"{key}: {value}" for key, value in segment.items()])
+                    seen_edges.add(edge_key)
+                    edges.append({
+                        "source": start_node_id,
+                        "target": end_node_id,
+                        "type": segment.type,
+                        "properties": dict(segment.items()),
+                        "title": edge_properties
+                    })
+
+    net = Network(notebook=False, directed=True)
+
+    for node_id, node_data in nodes.items():
+        title = " | ".join([f"{key}: {value}" for key, value in node_data["properties"].items()])
+        net.add_node(
+            node_id, 
+            label=node_data["label"], 
+            title=title, 
+            color=node_data["color"],
+            font={"vadjust": -40, "align": "middle"}
+        )
+
+    for edge in edges:
+        net.add_edge(edge["source"], edge["target"], title=edge["title"], label=edge["type"])
+
+    html_file = "query5.html"
+    net.write_html(html_file)
+    print(f"Graph saved as {html_file}.")
+    
+    webbrowser.open(html_file)
+
 def neo4j_queries():
 
     try:
@@ -456,9 +770,11 @@ def neo4j_queries():
                     listar_alunos_formados(session, semestre=semestre, ano=ano)
                     grafo_alunos_formados(session, semestre=semestre, ano=ano)
                 elif option == "4":
-                    pass
+                    listar_chefes_departamento(session)
+                    grafo_chefes_departamento(session)
                 elif option == "5":
-                    pass
+                    listar_grupos_tcc(session)
+                    grafo_grupos_tcc(session)
                 elif option == "0":
                     break
                 else:

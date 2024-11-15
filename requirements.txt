@@ -1,0 +1,7 @@
+pymongo
+cassandra-driver
+neo4j
+tabulate
+pyvis
+faker
+psycopg2

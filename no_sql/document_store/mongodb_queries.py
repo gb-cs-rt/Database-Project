@@ -79,7 +79,7 @@ def listar_alunos_formados(semester=None, year=None):
     
     pipeline = [
         {"$unwind": "$cursa"},
-        # Add a field that combines year and semester for accurate latest check
+
         {"$addFields": {
             "combined_year_semester": {
                 "$concat": [
@@ -88,9 +88,9 @@ def listar_alunos_formados(semester=None, year=None):
                 ]
             }
         }},
-        # Sort courses for each student by year and semester descending
+
         {"$sort": {"combined_year_semester": -1}},
-        # Group by student (ra) to collect all courses and find the latest course taken
+
         {"$group": {
             "_id": "$ra",
             "nome": {"$first": "$nome"},
@@ -98,7 +98,7 @@ def listar_alunos_formados(semester=None, year=None):
             "all_courses": {"$push": "$cursa"},
             "latest_course": {"$first": "$cursa"}
         }},
-        # Conditionally filter by the latest semester and year if provided
+
         {"$match": {
             "$expr": {
                 "$and": [
@@ -107,7 +107,7 @@ def listar_alunos_formados(semester=None, year=None):
                 ]
             }
         }},
-        # Ensure all subjects have been passed (media >= 5)
+
         {"$addFields": {
             "all_subjects_passed": {
                 "$allElementsTrue": {
@@ -120,7 +120,7 @@ def listar_alunos_formados(semester=None, year=None):
             }
         }},
         {"$match": {"all_subjects_passed": True}},
-        # Project the desired fields
+
         {"$project": {
             "_id": 0,
             "ra": "$_id",
@@ -128,13 +128,12 @@ def listar_alunos_formados(semester=None, year=None):
             "latest_semester": "$latest_course.semestre",
             "latest_year": "$latest_course.ano"
         }},
-        # Sort by latest year and latest semester
+
         {"$sort": {"latest_year": 1, "latest_semester": 1}}
     ]
 
     results = list(db.aluno.aggregate(pipeline))
 
-    # Sort results if needed (additional sorting by RA for consistent ordering)
     results.sort(key=lambda x: (x["latest_year"], x["latest_semester"], x["ra"]))
 
     headers = ["RA", "Nome", "Último Semestre", "Último Ano"]
@@ -256,8 +255,7 @@ def mongodb_queries():
         print("5 - Saber quais alunos formaram um grupo de TCC")
         print("    e qual professor foi o orientador.\n")
         print("0 - Voltar")
-        print("=====================================================================")
-
+        print("===================================================================")
 
         option = input("Escolha uma opção: ")
 

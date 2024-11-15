@@ -52,7 +52,8 @@ def insert_mongodb_data():
     # Insere os professores
     profs_to_insert = []
     for professor in professores:
-
+        
+        # Insere as entradas de leciona
         leciona_to_insert = []
         for leciona_entry in leciona:
             if leciona_entry["id_professor"] == professor["id"]:
@@ -69,6 +70,7 @@ def insert_mongodb_data():
                     "carga_horaria": leciona_entry["carga_horaria"]
                 })
 
+        # Insere as entradas de grupos_tcc
         grupos_to_insert = []
         for grupo in grupos_tcc:
             if grupo["id_professor"] == professor["id"]:
@@ -110,9 +112,11 @@ def insert_mongodb_data():
                     {"$set": {"chefe_departamento": departamento["nome_departamento"]}}
                 )
 
+    # Insere os cursos
     cursos_to_insert = []
     for curso in cursos:
 
+        # Insere as entradas de matriz_curricular
         matriz_curricular = []
         for matriz in matrizes_curriculares:
             if matriz["id_curso"] == curso["id_curso"]:
@@ -142,7 +146,8 @@ def insert_mongodb_data():
 
     alunos_to_insert = []
     for aluno in alunos:
-            
+        
+        # Insere as entradas de cursa
         cursa_to_insert = []
         for cursa_entry in cursa:
             if cursa_entry["id_aluno"] == aluno["ra"]:
@@ -159,6 +164,7 @@ def insert_mongodb_data():
                     "faltas": int(cursa_entry["faltas"])
                 })
         
+        # Insere as entradas de grupos_tcc
         grupo_tcc = None
         for grupo in grupos_tcc:
             if aluno["ra"] == grupo["ra"]:
