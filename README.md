@@ -38,3 +38,38 @@ pip install -r requirements.txt
 ```bash
 python main.py
 ```
+
+## Como usar
+
+Logo de início, o programa irá inserir os dados no PostgreSQL, extrair dos dados do PostgreSQL e inserí-los nos demais bancos.<br>
+Então, será exibido um menu, através do qual é possível escolher em qual banco deseja fazer a consulta de dados (query) e escolher, para cada um, entre as 5 queries solicitadas no projeto.<br>
+Todas as queries são executadas através dos drivers dos bancos para python, e os resultados são mostrados em uma tabela (e em grafo HTML para o Neo4J).
+
+# Descrição dos Bancos
+
+Para cada banco não relacional, serão descritos: estrutura dos dados armazenados e queries utilizadas.
+
+## MongoDB
+
+### Descrição das Coleções
+
+- Aluno
+```
+{
+    "_id": (ObjectID),
+    "ra": (Int32),
+    "id_curso": (Int32),
+    "nome": (String),
+    "email": (String),
+    "telefone": (String),
+    "cursa": Array<{
+                        "id_disciplina": (ObjectID),
+                        "codigo_disciplina": (String),
+                        "semestre": (Int32),
+                        "ano": (Int32),
+                        "media": (Double),
+                        "faltas": (Int32)
+                   }>
+    
+}
+```
