@@ -70,7 +70,7 @@ Para cada banco não relacional, serão descritos: estrutura dos dados armazenad
                         "ano": (Int32),
                         "media": (Double),
                         "faltas": (Int32)
-                   }>
+             }>
 }
 ```
 
@@ -86,7 +86,7 @@ Para cada banco não relacional, serão descritos: estrutura dos dados armazenad
     "matriz_curricular": Array<{
                                     "id_disciplina": (ObjectID),
                                     "codigo_disciplina": (String),
-                               }>
+                         }>
 }
 ```
 
@@ -343,3 +343,215 @@ Para cada banco não relacional, serão descritos: estrutura dos dados armazenad
     {"$sort": {"id_grupo": 1}}
 ]
 ```
+
+## Cassandra
+
+### Descrição das Tabelas
+
+- Tipo "Leciona"
+```
+leciona_entry (
+            id_curso int,
+            codigo_disciplina text,
+            semestre int,
+            ano int,
+            carga_horaria double
+        )
+```
+
+- Tipo "Cursa"
+```
+cursa_entry (
+            codigo_disciplina text,
+            semestre int,
+            ano int,
+            faltas int,
+            media double
+        )
+```
+
+- Aluno
+```
+aluno (
+            ra int PRIMARY KEY,
+            id_curso int,
+            nome text,
+            email text,
+            telefone text,
+            grupo_tcc int,
+            cursa list<frozen<cursa_entry>>
+        )
+```
+
+- Curso
+```
+curso (
+            id_curso int PRIMARY KEY,
+            nome_departamento text,
+            nome text,
+            horas_complementares int,
+            faltas int,
+            matriz_curricular list<text>
+        )
+```
+
+- Departamento
+```
+departamento (
+            nome_departamento text PRIMARY KEY,
+            chefe_id int
+        )
+```
+
+- Disciplina
+```
+disciplina (
+            codigo_disciplina text PRIMARY KEY,
+            nome text,
+            carga_horaria int,
+            nome_departamento text
+        )
+```
+
+- Professor
+```
+professor (
+            id int PRIMARY KEY,
+            nome text,
+            nome_departamento text,
+            email text,
+            telefone text,
+            salario double,
+            chefe_departamento text,
+            grupos_tcc list<int>,
+            leciona list<frozen<leciona_entry>>
+        )
+```
+
+### Queries (Cassandra)
+
+1. histórico escolar de qualquer aluno, retornando o código e nome da disciplina, semestre e ano que a disciplina foi cursada e nota final:
+```
+rows = session.execute("""
+        SELECT cursa FROM aluno WHERE ra = %s
+    """, (ra,))
+    
+    academic_record = []
+    for row in rows:
+        if row.cursa:
+            for course in row.cursa:
+
+                disciplina_row = session.execute("""
+                    SELECT nome FROM disciplina WHERE codigo_disciplina = %s
+                """, (course.codigo_disciplina,)).one()
+                
+                if disciplina_row:
+                    record = {
+                        "codigo_disciplina": course.codigo_disciplina,
+                        "nome_disciplina": disciplina_row.nome,
+                        "semestre": course.semestre,
+                        "ano": course.ano,
+                        "media_final": course.media
+                    }
+                    academic_record.append(record)
+```
+
+2. histórico de disciplinas ministradas por qualquer professor, com semestre e ano:
+```
+rows = session.execute("""
+        SELECT leciona, nome FROM professor WHERE id = %s
+    """, (id_professor,))
+    
+    teaching_history = []
+    for row in rows:
+        if row.leciona:
+            for leciona_entry in row.leciona:
+
+                disciplina_row = session.execute("""
+                    SELECT nome FROM disciplina WHERE codigo_disciplina = %s
+                """, (leciona_entry.codigo_disciplina,)).one()
+                
+                if disciplina_row:
+                    record = {
+                        "nome_professor": row.nome,
+                        "codigo_disciplina": leciona_entry.codigo_disciplina,
+                        "nome_disciplina": disciplina_row.nome,
+                        "semestre": leciona_entry.semestre,
+                        "ano": leciona_entry.ano
+                    }
+                    teaching_history.append(record)
+```
+
+3. listar alunos que já se formaram (foram aprovados em todos os cursos de uma matriz curricular) em um determinado semestre de um ano:
+```
+rows = session.execute("""
+        SELECT ra, nome, id_curso, cursa FROM aluno
+    """)
+
+    graduated_students = []
+    for row in rows:
+        if row.cursa:
+
+            all_passed = all(course.media >= 5 for course in row.cursa)
+            latest_semester = max(row.cursa, key=lambda x: (x.ano, x.semestre)).semestre
+            latest_year = max(row.cursa, key=lambda x: (x.ano, x.semestre)).ano
+
+            if all_passed and (semester is None or semester == latest_semester) and (year is None or year == latest_year):
+                graduated_students.append({
+                    "ra": row.ra,
+                    "nome": row.nome,
+                    "latest_semester": latest_semester,
+                    "latest_year": latest_year
+                })
+```
+
+4. listar todos os professores que são chefes de departamento, junto com o nome do departamento:
+```
+rows = session.execute("""
+        SELECT nome_departamento, chefe_id FROM departamento
+    """)
+
+    results = []
+    for row in rows:
+        if row.chefe_id is not None:
+
+            professor = session.execute("""
+                SELECT nome FROM professor WHERE id = %s
+            """, (row.chefe_id,)).one()
+            
+            if professor:
+                results.append({
+                    "nome_departamento": row.nome_departamento,
+                    "chefe": professor.nome,
+                    "id": row.chefe_id
+                })
+```
+
+5. saber quais alunos formaram um grupo de TCC e qual professor foi o orientador:
+```
+rows = session.execute("""
+        SELECT ra, nome, grupo_tcc FROM aluno
+    """)
+
+    results = []
+    for row in rows:
+        if row.grupo_tcc is not None:
+
+            professors = session.execute("""
+                SELECT id, nome, grupos_tcc FROM professor
+            """)
+            for professor in professors:
+
+                if professor.grupos_tcc is not None and row.grupo_tcc in professor.grupos_tcc:
+                    results.append({
+                        "id_grupo": row.grupo_tcc,
+                        "ra": row.ra,
+                        "nome_aluno": row.nome,
+                        "orientador": professor.nome
+                    })
+                    break
+```
+
+## Neo4J
+
+### Descrição dos Nós e Relacionamentos
