@@ -131,3 +131,215 @@ Para cada banco não relacional, serão descritos: estrutura dos dados armazenad
                      }>
 }
 ```
+
+### Queries (MongoDB)
+
+1. histórico escolar de qualquer aluno, retornando o código e nome da disciplina, semestre e ano que a disciplina foi cursada e nota final:
+```
+[
+    {
+        "$match": {
+            "ra": 1 // Insira o RA desejado
+        }
+    },
+    {
+        "$unwind": "$cursa"
+    },
+    {
+        "$lookup": {
+            "from": "disciplina",
+            "localField": "cursa.id_disciplina",
+            "foreignField": "_id",
+            "as": "disciplina_info"
+        }
+    },
+    {
+        "$unwind": "$disciplina_info"
+    },
+    {
+        "$project": {
+            "_id": 0,
+            "ra": "$ra",
+            "codigo_disciplina": "$cursa.codigo_disciplina",
+            "nome_disciplina": "$disciplina_info.nome",
+            "semestre": "$cursa.semestre",
+            "ano": "$cursa.ano",
+            "media_final": "$cursa.media"
+        }
+    },
+    {
+        "$sort": {
+            "ano": 1,
+            "semestre": 1
+        }
+    }
+]
+```
+
+2. histórico de disciplinas ministradas por qualquer professor, com semestre e ano:
+```
+[
+    {
+        "$match": {
+            "id": 1 // Insira o ID do professor
+        }
+    },
+    {
+        "$unwind": "$leciona"
+    },
+    {
+        "$lookup": {
+            "from": "disciplina",
+            "localField": "leciona.id_disciplina",
+            "foreignField": "_id",
+            "as": "disciplina_info"
+        }
+    },
+    {
+        "$unwind": "$disciplina_info"
+    },
+    {
+        "$project": {
+            "_id": 0,
+            "id_professor": "$id",
+            "nome_professor": "$nome",
+            "codigo_disciplina": "$leciona.codigo_disciplina",
+            "nome_disciplina": "$disciplina_info.nome",
+            "semestre": "$leciona.semestre",
+            "ano": "$leciona.ano"
+        }
+    },
+    {
+        "$sort": {
+            "ano": 1,
+            "semestre": 1
+        }
+    }
+]
+```
+
+3. listar alunos que já se formaram (foram aprovados em todos os cursos de uma matriz curricular) em um determinado semestre de um ano:
+```
+[
+    {"$unwind": "$cursa"},
+
+    {"$addFields": {
+        "combined_year_semester": {
+            "$concat": [
+                {"$toString": "$cursa.ano"}, "-",
+                {"$toString": "$cursa.semestre"}
+            ]
+        }
+    }},
+
+    {"$sort": {"combined_year_semester": -1}},
+
+    {"$group": {
+        "_id": "$ra",
+        "nome": {"$first": "$nome"},
+        "id_curso": {"$first": "$id_curso"},
+        "all_courses": {"$push": "$cursa"},
+        "latest_course": {"$first": "$cursa"}
+    }},
+
+    {"$match": {
+        "$expr": {
+            "$and": [
+                {"$or": [{"$eq": [semester, None]}, {"$eq": ["$latest_course.semestre", semester]}]},
+                {"$or": [{"$eq": [year, None]}, {"$eq": ["$latest_course.ano", year]}]}
+            ]
+        }
+    }},
+
+    {"$addFields": {
+        "all_subjects_passed": {
+            "$allElementsTrue": {
+                "$map": {
+                    "input": "$all_courses",
+                    "as": "course",
+                    "in": {"$gte": ["$$course.media", 5]}
+                }
+            }
+        }
+    }},
+    {"$match": {"all_subjects_passed": True}},
+
+    {"$project": {
+        "_id": 0,
+        "ra": "$_id",
+        "nome": 1,
+        "latest_semester": "$latest_course.semestre",
+        "latest_year": "$latest_course.ano"
+    }},
+
+    {"$sort": {"latest_year": 1, "latest_semester": 1}}
+]
+```
+
+4. listar todos os professores que são chefes de departamento, junto com o nome do departamento:
+```
+[
+    {
+        "$lookup": {
+            "from": "departamento",
+            "localField": "chefe_departamento",
+            "foreignField": "nome_departamento",
+            "as": "department_info"
+        }
+    },
+    {
+        "$match": {
+            "department_info": {"$ne": []}
+        }
+    },
+    {
+        "$project": {
+            "_id": 0,
+            "nome_departamento": {"$arrayElemAt": ["$department_info.nome_departamento", 0]},
+            "chefe": "$nome",
+            "id": 1
+        }
+    }
+]
+```
+
+5. saber quais alunos formaram um grupo de TCC e qual professor foi o orientador:
+```
+[
+    {
+        "$match": {
+            "grupo_tcc": {"$ne": None}
+        }
+    },
+
+    {
+        "$lookup": {
+            "from": "professor",
+            "let": {"grupo_id": "$grupo_tcc"},
+            "pipeline": [
+                {
+                    "$match": {
+                        "$expr": {
+                            "$in": ["$$grupo_id", "$grupos_tcc"]
+                        }
+                    }
+                }
+            ],
+            "as": "professor_info"
+        }
+    },
+    {"$unwind": "$professor_info"},
+
+    {
+        "$project": {
+            "_id": 0,
+            "id_grupo": "$grupo_tcc",
+            "ra": "$ra",
+            "nome_aluno": "$nome",
+            "orientador": "$professor_info.nome"
+        }
+    },
+
+    {"$sort": {"id_grupo": 1}}
+]
+```
