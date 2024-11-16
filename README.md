@@ -47,7 +47,14 @@ Todas as queries são executadas através dos drivers dos bancos para python, e 
 
 # Descrição dos Bancos
 
+Para o banco relacional usado como base, será fornecido o Diagrama Relacional.
 Para cada banco não relacional, serão descritos: estrutura dos dados armazenados e queries utilizadas.
+
+## PostgreSQL
+
+### Diagrama Relacional
+
+![Diagrama Relacional](https://raw.githubusercontent.com/gb-cs-rt/projeto_sql/refs/heads/main/diagrama_relacional.png)
 
 ## MongoDB
 
@@ -349,7 +356,7 @@ Para cada banco não relacional, serão descritos: estrutura dos dados armazenad
 ### Descrição das Tabelas
 
 - Tipo "Leciona"
-```
+```sql
 leciona_entry (
             id_curso int,
             codigo_disciplina text,
@@ -360,7 +367,7 @@ leciona_entry (
 ```
 
 - Tipo "Cursa"
-```
+```sql
 cursa_entry (
             codigo_disciplina text,
             semestre int,
@@ -371,7 +378,7 @@ cursa_entry (
 ```
 
 - Aluno
-```
+```sql
 aluno (
             ra int PRIMARY KEY,
             id_curso int,
@@ -384,7 +391,7 @@ aluno (
 ```
 
 - Curso
-```
+```sql
 curso (
             id_curso int PRIMARY KEY,
             nome_departamento text,
@@ -396,7 +403,7 @@ curso (
 ```
 
 - Departamento
-```
+```sql
 departamento (
             nome_departamento text PRIMARY KEY,
             chefe_id int
@@ -404,7 +411,7 @@ departamento (
 ```
 
 - Disciplina
-```
+```sql
 disciplina (
             codigo_disciplina text PRIMARY KEY,
             nome text,
@@ -414,7 +421,7 @@ disciplina (
 ```
 
 - Professor
-```
+```sql
 professor (
             id int PRIMARY KEY,
             nome text,
@@ -431,7 +438,7 @@ professor (
 ### Queries (Cassandra)
 
 1. histórico escolar de qualquer aluno, retornando o código e nome da disciplina, semestre e ano que a disciplina foi cursada e nota final:
-```
+```python
 rows = session.execute("""
         SELECT cursa FROM aluno WHERE ra = %s
     """, (ra,))
@@ -457,7 +464,7 @@ rows = session.execute("""
 ```
 
 2. histórico de disciplinas ministradas por qualquer professor, com semestre e ano:
-```
+```python
 rows = session.execute("""
         SELECT leciona, nome FROM professor WHERE id = %s
     """, (id_professor,))
@@ -483,7 +490,7 @@ rows = session.execute("""
 ```
 
 3. listar alunos que já se formaram (foram aprovados em todos os cursos de uma matriz curricular) em um determinado semestre de um ano:
-```
+```python
 rows = session.execute("""
         SELECT ra, nome, id_curso, cursa FROM aluno
     """)
@@ -506,7 +513,7 @@ rows = session.execute("""
 ```
 
 4. listar todos os professores que são chefes de departamento, junto com o nome do departamento:
-```
+```python
 rows = session.execute("""
         SELECT nome_departamento, chefe_id FROM departamento
     """)
@@ -528,7 +535,7 @@ rows = session.execute("""
 ```
 
 5. saber quais alunos formaram um grupo de TCC e qual professor foi o orientador:
-```
+```python
 rows = session.execute("""
         SELECT ra, nome, grupo_tcc FROM aluno
     """)
