@@ -554,7 +554,7 @@ rows = session.execute("""
 
 ## Neo4J
 
-![Graph](imageurl)
+![Graph](https://raw.githubusercontent.com/gb-cs-rt/projeto_nosql/refs/heads/main/neo4j_schema.png)
 
 ### Descrição dos Nós
 
