@@ -554,4 +554,167 @@ rows = session.execute("""
 
 ## Neo4J
 
-### Descrição dos Nós e Relacionamentos
+![Graph](imageurl)
+
+### Descrição dos Nós
+
+- Aluno
+```
+{
+    "ra": (int),
+    "id_curso": (int),
+    "nome": (string),
+    "email": (string),
+    "telefone": (string)
+}
+
+```
+
+- Curso
+```
+{
+    "id_curso": (int),
+    "nome": (string),
+    "nome_departamento": (string),
+    "horas_complementares": (int),
+    "faltas": (int)
+}
+```
+
+- Departamento
+```
+{
+    "nome_departamento": (string)
+}
+```
+
+- Disciplina
+```
+{
+    "codigo_disciplina": (string),
+    "nome": (string),
+    "carga_horaria": (int),
+    "nome_departamento": (string)
+}
+```
+
+- Professor
+```
+{
+    "id": (int),
+    "nome": (string),
+    "email": (string),
+    "telefone": (string),
+    "salario": (float),
+    "nome_departamento": (string)
+}
+```
+
+- GrupoTCC
+```
+{
+    "id_grupo": (int)
+}
+```
+
+### Descrição das Relações
+
+- CURSA (Aluno -> Disciplina)
+```
+{
+    "semestre": (int),
+    "ano": (int),
+    "media": (float),
+    "faltas": (int)
+}
+```
+
+- LECIONA (Professor -> Disciplina)
+```
+{
+    "semestre": (int),
+    "ano": (int),
+    "carga_horaria": (int)
+}
+```
+
+- CHEFE_DE (Professor -> Departamento)
+```
+{
+    "nome_departamento": (string)
+}
+```
+
+- ORIENTA (Professor -> GrupoTCC)
+```
+{
+    "id_grupo": (int)
+}
+```
+
+- MEMBRO_DE (Aluno -> GrupoTCC)
+```
+{
+    "id_grupo": (int)
+}
+```
+
+- INCLUI (Curso -> Disciplina)
+```
+{
+    "codigo_disciplina": (string)
+}
+```
+
+### Queries (Neo4J)
+
+1. histórico escolar de qualquer aluno, retornando o código e nome da disciplina, semestre e ano que a disciplina foi cursada e nota final:
+```
+MATCH (a:Aluno {ra: $ra})-[c:CURSA]->(d:Disciplina)
+RETURN a.ra AS ra, d.codigo_disciplina AS codigo_disciplina, d.nome AS nome_disciplina,
+        c.semestre AS semestre, c.ano AS ano, c.media AS nota_final
+ORDER BY c.ano, c.semestre
+```
+
+2. histórico de disciplinas ministradas por qualquer professor, com semestre e ano:
+```
+MATCH (p:Professor {id: $id_professor})-[l:LECIONA]->(d:Disciplina)
+RETURN p.id AS id_professor, p.nome AS nome_professor, d.codigo_disciplina AS codigo_disciplina, 
+        d.nome AS nome_disciplina, l.semestre AS semestre, l.ano AS ano
+ORDER BY l.ano, l.semestre
+```
+
+3. listar alunos que já se formaram (foram aprovados em todos os cursos de uma matriz curricular) em um determinado semestre de um ano:
+```
+MATCH (a:Aluno)-[c:CURSA]->(d:Disciplina)
+WHERE c.media >= 5
+WITH a, COLLECT(d.codigo_disciplina) AS disciplinas_aprovadas, MAX(c.ano * 10 + c.semestre) AS ultimo_periodo
+MATCH (a)-[:CURSA]->(todasDisciplinas:Disciplina)
+WITH a, disciplinas_aprovadas, ultimo_periodo, COLLECT(todasDisciplinas.codigo_disciplina) AS todas_disciplinas
+WHERE SIZE(disciplinas_aprovadas) = SIZE(todas_disciplinas) AND ALL(disciplina IN todas_disciplinas WHERE disciplina IN disciplinas_aprovadas)
+AND ultimo_periodo = $periodo
+RETURN a.ra AS ra, a.nome AS nome, ultimo_periodo
+ORDER BY a.ra
+```
+
+4. listar todos os professores que são chefes de departamento, junto com o nome do departamento:
+```
+MATCH (p:Professor)-[:CHEFE_DE]->(d:Departamento)
+RETURN d.nome_departamento AS nome_departamento, p.nome AS chefe, p.id AS id
+ORDER BY d.nome_departamento
+```
+
+5. saber quais alunos formaram um grupo de TCC e qual professor foi o orientador:
+```
+MATCH (g:GrupoTCC)<-[:MEMBRO_DE]-(a:Aluno)
+OPTIONAL MATCH (p:Professor)-[:ORIENTA]->(g)
+RETURN g.id_grupo AS id_grupo, a.ra AS ra, a.nome AS nome_aluno, p.nome AS orientador
+ORDER BY g.id_grupo
+```
+
+# Componentes do Grupo
+
+- Cauan Sousa > 24.124.084-5
+- Guilherme Justiça > 24.122.045-8
+- Gustavo Bagio > 24.122.012-8
+- Ruan Turola > 24.122.050-8
