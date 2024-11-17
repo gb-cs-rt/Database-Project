@@ -18,6 +18,14 @@ git clone https://gitlab.com/laferreira/fei/cc6240.git
 cd cc6240/src/
 ```
 
+2- Abra o arquivo 'docker-compose.yaml' com um editor de texto e adicione a variável de ambiente para alterar a senha padrão do Neo4J:
+```yaml
+neo4j:
+    [...]
+    environment:
+      - NEO4J_AUTH=neo4j/cc6240admin
+```
+
 2- Inicie o Docker, que subirá os 4 bancos a serem utilizados (PostgreSQL, MongoDB, Cassandra e Neo4J):
 ```bash
 sudo docker compose up
